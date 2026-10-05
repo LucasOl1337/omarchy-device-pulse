@@ -1,9 +1,11 @@
 #!/usr/bin/python3
 """Install DevicePulse as an Omarchy plugin and a user timer."""
 import argparse
+import hashlib
 import json
 import shutil
 import subprocess
+import tempfile
 import time
 from pathlib import Path
 
@@ -19,6 +21,38 @@ def run(*args, check=True):
     return subprocess.run(args, check=check, capture_output=True, text=True)
 
 
+def deploy_ui(source, destination):
+    """Give each QML generation a fresh URL in the running shell's cache."""
+    files = sorted([*source.glob('*.qml'), *source.glob('*.js')])
+    digest = hashlib.sha256()
+    for path in files:
+        digest.update(path.name.encode() + b'\0' + path.read_bytes())
+    generation = digest.hexdigest()[:20]
+    runtime = destination / '.runtime' / generation
+    runtime.parent.mkdir(parents=True, exist_ok=True)
+    if not runtime.exists():
+        temporary = Path(tempfile.mkdtemp(prefix='.staging-', dir=runtime.parent))
+        try:
+            for path in files:
+                shutil.copy2(path, temporary / path.name)
+            temporary.rename(runtime)
+        finally:
+            if temporary.exists():
+                shutil.rmtree(temporary)
+    manifest = json.loads((source / 'manifest.json').read_text())
+    manifest['entryPoints']['barWidget'] = '.runtime/' + generation + '/Panel.qml'
+    with tempfile.NamedTemporaryFile('w', prefix='.manifest-', dir=destination, delete=False) as handle:
+        temporary = Path(handle.name)
+        json.dump(manifest, handle, ensure_ascii=False, indent=2)
+        handle.write('\n')
+    try:
+        temporary.chmod(0o644)
+        temporary.replace(destination / 'manifest.json')
+    finally:
+        temporary.unlink(missing_ok=True)
+    return generation
+
+
 def install(udev=False):
     run('omarchy-plugin-validate', str(ROOT))
     # Preserve the initial local prototype's history and placement when upgrading.
@@ -30,8 +64,9 @@ def install(udev=False):
             shutil.copytree(legacy, STATE)
     STATE.mkdir(parents=True, exist_ok=True, mode=0o700)
     DEST.mkdir(parents=True, exist_ok=True)
-    for name in ('manifest.json', 'Panel.qml', 'Content.qml', 'collect.py', 'mouse.py', 'control.py'):
+    for name in ('collect.py', 'mouse.py', 'control.py'):
         shutil.copy2(ROOT / name, DEST / name)
+    deploy_ui(ROOT, DEST)
     UNITS.mkdir(parents=True, exist_ok=True)
     (UNITS / 'omarchy-device-pulse.service').write_text(
         '[Unit]\nDescription=DevicePulse peripheral battery tracker\n\n'

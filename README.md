@@ -31,6 +31,8 @@ python3 install.py --udev
 
 Essa opção usa sudo pra instalar regras udev restritas aos dois receptores. O coletor roda como usuário comum. Rodar o instalador de novo atualiza os arquivos sem apagar o histórico ou mudar a posição do ícone.
 
+Cada atualização publica o QML em `.runtime/<hash>/`, evitando que a barra continue usando a interface antiga em cache. Pra conferir a versão carregada: `quickshell ipc -p /usr/share/omarchy/shell call lucasol.device-pulse diagnostics`.
+
 ## Dispositivos
 
 | Fonte | Cobertura |

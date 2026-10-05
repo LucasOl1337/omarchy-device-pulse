@@ -8,7 +8,18 @@ import qs.Commons
 Panel {
   id: root
   moduleName: "lucasol.device-pulse"
+  ipcTarget: "lucasol.device-pulse"
   manageIpc: false
+  IpcHandler {
+    enabled: root.ipcTarget !== ""
+    target: root.ipcTarget
+    function open(): void { root.open() }
+    function close(): void { root.close() }
+    function toggle(): void { root.toggle() }
+    function diagnostics(): string {
+      return JSON.stringify({version: "1.1.1", sourceUrl: Qt.resolvedUrl("Panel.qml").toString(), layout: "compact-device-settings", devices: root.snapshot.devices.length})
+    }
+  }
   property var snapshot: ({devices: [], errors: []})
   property var deferredSnapshot: null
   property string actionMessage: ""
