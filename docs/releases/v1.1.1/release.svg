@@ -1,0 +1,45 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="1234" viewBox="0 0 1200 1234">
+<defs><linearGradient id="bg" x2="1" y2="1"><stop stop-color="#160D31"/><stop offset="1" stop-color="#28184D"/></linearGradient></defs>
+<rect width="1200" height="1234" fill="url(#bg)"/>
+<path d="M28 78V28H78 M1122 28H1172V78 M28 1156V1206H78 M1122 1206H1172V1156" stroke="#BCB1D2" opacity=".35" fill="none" stroke-width="2"/>
+<text x="56" y="94" fill="#F8F5FF" font-family="Liberation Sans, sans-serif" font-size="48" font-weight="700" >DevicePulse</text>
+<rect x="346" y="54" width="142" height="46" rx="23" fill="#8260C0"/>
+<text x="368" y="86" fill="#FFFFFF" font-family="Liberation Sans, sans-serif" font-size="27" font-weight="700" >v1.1.1</text>
+<text x="1144" y="64" fill="#BCB1D2" font-family="Liberation Sans, sans-serif" font-size="20" font-weight="700" text-anchor="end" letter-spacing="2">LUCASOL</text>
+<text x="1144" y="99" fill="#BCB1D2" font-family="Liberation Sans, sans-serif" font-size="20" font-weight="400" text-anchor="end">5 de outubro de 2026</text>
+<text x="56" y="154" fill="#F2CC91" font-family="Liberation Sans, sans-serif" font-size="23" font-weight="700" letter-spacing="2">NOTAS DA ATUALIZAÇÃO</text>
+<path d="M56 182H1144" stroke="#BCB1D2" opacity=".25"/>
+<text x="56" y="222" fill="#BCB1D2" font-family="Liberation Sans, sans-serif" font-size="24" font-weight="400" >Bateria e configurações dos periféricos na barra.</text>
+<rect x="56" y="253" width="7" height="34" rx="3" fill="#FFC61A"/>
+<text x="80" y="277" fill="#FFC61A" font-family="Liberation Sans, sans-serif" font-size="26" font-weight="700" letter-spacing="2">NOVIDADES</text>
+<text x="1144" y="277" fill="#BCB1D2" font-family="Liberation Sans, sans-serif" font-size="20" font-weight="400" text-anchor="end">3 itens</text>
+<circle cx="83" cy="325" r="6" fill="#FFC61A"/>
+<text x="103" y="333" fill="#F8F5FF" font-family="Liberation Sans, sans-serif" font-size="28" font-weight="700" >Bateria dos seus dispositivos</text>
+<text x="103" y="369" fill="#BCB1D2" font-family="Liberation Sans, sans-serif" font-size="23" font-weight="400" >Mouse, teclado e fone juntos, com leitura do Linux e receptores suportados.</text>
+<circle cx="83" cy="423" r="6" fill="#FFC61A"/>
+<text x="103" y="431" fill="#F8F5FF" font-family="Liberation Sans, sans-serif" font-size="28" font-weight="700" >DPI e polling rate pelo painel</text>
+<text x="103" y="467" fill="#BCB1D2" font-family="Liberation Sans, sans-serif" font-size="23" font-weight="400" >Escolha etapas ou DPI personalizado e ajuste a frequência do K7 Ultra.</text>
+<circle cx="83" cy="521" r="6" fill="#FFC61A"/>
+<text x="103" y="529" fill="#F8F5FF" font-family="Liberation Sans, sans-serif" font-size="28" font-weight="700" >Histórico e avisos de carga</text>
+<text x="103" y="565" fill="#BCB1D2" font-family="Liberation Sans, sans-serif" font-size="23" font-weight="400" >Veja as últimas 24 horas e receba avisos em 20% e 10%.</text>
+<path d="M56 609H1144" stroke="#BCB1D2" opacity=".18"/>
+<rect x="56" y="629" width="7" height="34" rx="3" fill="#2DD29A"/>
+<text x="80" y="653" fill="#2DD29A" font-family="Liberation Sans, sans-serif" font-size="26" font-weight="700" letter-spacing="2">MELHORIAS</text>
+<text x="1144" y="653" fill="#BCB1D2" font-family="Liberation Sans, sans-serif" font-size="20" font-weight="400" text-anchor="end">1 item</text>
+<circle cx="83" cy="701" r="6" fill="#2DD29A"/>
+<text x="103" y="709" fill="#F8F5FF" font-family="Liberation Sans, sans-serif" font-size="28" font-weight="700" >Painel mais compacto</text>
+<text x="103" y="745" fill="#BCB1D2" font-family="Liberation Sans, sans-serif" font-size="23" font-weight="400" >Os controles ficam no cartão do mouse e abrem quando você precisa.</text>
+<path d="M56 789H1144" stroke="#BCB1D2" opacity=".18"/>
+<rect x="56" y="809" width="7" height="34" rx="3" fill="#30BCEF"/>
+<text x="80" y="833" fill="#30BCEF" font-family="Liberation Sans, sans-serif" font-size="26" font-weight="700" letter-spacing="2">CORREÇÕES</text>
+<text x="1144" y="833" fill="#BCB1D2" font-family="Liberation Sans, sans-serif" font-size="20" font-weight="400" text-anchor="end">2 itens</text>
+<circle cx="83" cy="881" r="6" fill="#30BCEF"/>
+<text x="103" y="889" fill="#F8F5FF" font-family="Liberation Sans, sans-serif" font-size="28" font-weight="700" >Bateria do MCHOSE X9</text>
+<text x="103" y="925" fill="#BCB1D2" font-family="Liberation Sans, sans-serif" font-size="23" font-weight="400" >O receptor 2.4 GHz agora informa o percentual do fone ligado.</text>
+<circle cx="83" cy="979" r="6" fill="#30BCEF"/>
+<text x="103" y="987" fill="#F8F5FF" font-family="Liberation Sans, sans-serif" font-size="28" font-weight="700" >Atualização que aparece na barra</text>
+<text x="103" y="1023" fill="#BCB1D2" font-family="Liberation Sans, sans-serif" font-size="23" font-weight="400" >O instalador evita o cache que mantinha a interface antiga.</text>
+<path d="M56 1067H1144" stroke="#BCB1D2" opacity=".18"/>
+<text x="56" y="1159" fill="#F2CC91" font-family="Liberation Sans, sans-serif" font-size="24" font-weight="700" >Código, instalação e notas completas no GitHub.</text>
+<text x="56" y="1194" fill="#BCB1D2" font-family="Liberation Sans, sans-serif" font-size="20" font-weight="400" >github.com/LucasOl1337/omarchy-device-pulse/releases</text>
+</svg>
