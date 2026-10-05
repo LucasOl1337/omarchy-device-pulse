@@ -1,2 +1,3 @@
-# Active local user's access to the MCHOSE mouse receiver telemetry interface.
+# Active local user's access to the MCHOSE mouse and X9 receiver interfaces.
 SUBSYSTEM=="hidraw", ATTRS{idVendor}=="5253", ATTRS{idProduct}=="1020", TAG+="uaccess"
+SUBSYSTEM=="hidraw", ATTRS{idVendor}=="3837", ATTRS{idProduct}=="6045", TAG+="uaccess"

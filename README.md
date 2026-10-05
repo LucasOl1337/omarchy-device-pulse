@@ -1,10 +1,11 @@
 # DevicePulse
 
-Bateria de mouse, teclado e fone na barra do Omarchy. Um ícone, um painel compacto, sem precisar abrir o driver do fabricante.
+Bateria e configurações dos seus periféricos na barra do Omarchy. Um ícone, um painel compacto, com controles de DPI e polling rate nos modelos suportados.
 
 ## O que aparece
 
 - Percentual e estado de carga por dispositivo.
+- DPI atual e polling rate do MCHOSE K7 Ultra, com etapas, valor personalizado e troca de frequência pelo painel.
 - Bluetooth pareado, inclusive quando está desconectado. A última leitura fica identificada como histórica.
 - Histórico das últimas 24 horas. O gráfico aparece quando a carga muda; os dados ficam guardados por 30 dias.
 - Avisos em 20% e 10%, sem repetir a cada atualização.
@@ -22,13 +23,13 @@ cd omarchy-device-pulse
 python3 install.py
 ```
 
-Pra ler os mouses MCHOSE com receptor `5253:1020`, instale também a regra de acesso USB:
+Pra ler e configurar o K7 Ultra com receptor `5253:1020`, ou ler a bateria do X9 `3837:6045`, instale também as regras de acesso USB:
 
 ```bash
 python3 install.py --udev
 ```
 
-Essa opção usa sudo pra instalar uma regra udev restrita ao receptor. O coletor roda como usuário comum. Rodar o instalador de novo atualiza os arquivos sem apagar o histórico ou mudar a posição do ícone.
+Essa opção usa sudo pra instalar regras udev restritas aos dois receptores. O coletor roda como usuário comum. Rodar o instalador de novo atualiza os arquivos sem apagar o histórico ou mudar a posição do ícone.
 
 ## Dispositivos
 
@@ -36,12 +37,21 @@ Essa opção usa sudo pra instalar uma regra udev restrita ao receptor. O coleto
 | --- | --- |
 | UPower | Periféricos com bateria exposta pelo Linux, como Logitech HID++ |
 | BlueZ | Dispositivos pareados, com percentual quando `org.bluez.Battery1` está disponível e o aparelho está conectado |
-| MCHOSE USB | Leitura de identidade do mouse no receptor `5253:1020`; testado no K7 Ultra |
-| AJAZZ `3151:5007` e MCHOSE X9 `3837:6045` | Receptor detectado; percentual ainda não suportado |
+| MCHOSE K7 Ultra `5253:1020` | Bateria, DPI atual, etapas e polling rate; edição validada neste modelo |
+| MCHOSE X9 `3837:6045` | Bateria pelo receptor 2.4 GHz; validado em hardware real |
+| AJAZZ `3151:5007` | Receptor detectado; bateria e edição de configurações ainda sem suporte |
 
 Um dongle conectado não prova que o aparelho está ligado. Por isso o painel informa "Receptor detectado" quando não consegue ler a telemetria. Nomes de outros receptores podem precisar de suporte específico.
 
-A leitura MCHOSE segue a documentação de [alexfrih/mchose-linux](https://github.com/alexfrih/mchose-linux/blob/main/PROTOCOL.md): somente a consulta de identidade `0x11/0x06`, sem comandos de configuração, DPI ou firmware.
+O protocolo do mouse segue a documentação de [alexfrih/mchose-linux](https://github.com/alexfrih/mchose-linux/blob/main/PROTOCOL.md). A bateria do X9 usa o protocolo de status documentado pelo [HeadsetControl](https://github.com/Sapd/HeadsetControl/blob/master/lib/devices/mchose_x9.hpp): consulta `55 65 01`, resposta com campo de bateria `02`. O coletor valida dispositivo, interface, assinatura e percentual.
+
+## Ajustar o mouse
+
+No K7 Ultra, clique em **Ajustar**. Você pode escolher uma etapa de DPI, editar o valor da etapa atual em passos de 50 ou trocar o polling rate. A edição de DPI coloca X e Y no mesmo valor. A seleção de etapa e polling rate vale pro link do receptor; a configuração do link por cabo fica preservada.
+
+O coletor só lê. O controlador escreve apenas depois da sua ação no painel, guarda a configuração anterior e confere a leitura de volta. Só mostra sucesso quando o mouse confirma a mudança. Backups ficam em `~/.local/state/omarchy-device-pulse/mouse-before-*.json`; não vão pro repo.
+
+Quando o mouse dorme ou sai de alcance, o painel guarda a última configuração como anterior e desabilita a edição. Movimente o mouse e reabra o painel pra buscar a leitura atual. A edição de outros modelos ainda depende de validação do protocolo.
 
 ## Manutenção
 

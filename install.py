@@ -30,7 +30,7 @@ def install(udev=False):
             shutil.copytree(legacy, STATE)
     STATE.mkdir(parents=True, exist_ok=True, mode=0o700)
     DEST.mkdir(parents=True, exist_ok=True)
-    for name in ('manifest.json', 'Panel.qml', 'Content.qml', 'collect.py'):
+    for name in ('manifest.json', 'Panel.qml', 'Content.qml', 'collect.py', 'mouse.py', 'control.py'):
         shutil.copy2(ROOT / name, DEST / name)
     UNITS.mkdir(parents=True, exist_ok=True)
     (UNITS / 'omarchy-device-pulse.service').write_text(
@@ -47,7 +47,7 @@ def install(udev=False):
         run('sudo', 'udevadm', 'control', '--reload-rules')
         for node in Path('/sys/class/hidraw').glob('*'):
             try:
-                if 'HID_ID=0003:00005253:00001020' in (node / 'device/uevent').read_text():
+                if any(identity in (node / 'device/uevent').read_text() for identity in ('HID_ID=0003:00005253:00001020', 'HID_ID=0003:00003837:00006045')):
                     run('sudo', 'udevadm', 'trigger', '--action=add', str(node))
             except OSError:
                 pass

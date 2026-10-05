@@ -10,12 +10,24 @@ Panel {
   moduleName: "lucasol.device-pulse"
   manageIpc: false
   property var snapshot: ({devices: [], errors: []})
+  property var deferredSnapshot: null
+  property string actionMessage: ""
+  property bool actionFailed: false
+  property string pendingDevice: ""
   readonly property var levels: snapshot.devices.filter(d => d.percent !== null && d.connected === true)
   readonly property int lowest: levels.length ? Math.min.apply(null, levels.map(d => d.percent)) : -1
   implicitWidth: button.implicitWidth
   implicitHeight: button.implicitHeight
 
   function refresh() { if (!refreshProcess.running) refreshProcess.running = true }
+  function applySetting(deviceId, action, value) {
+    if (controlProcess.running || ["dpi", "stage", "rate"].indexOf(action) < 0) return
+    actionMessage = "Aplicando no mouse…"
+    actionFailed = false
+    pendingDevice = deviceId
+    controlProcess.command = ["/usr/bin/python3", Quickshell.env("HOME") + "/.config/omarchy/plugins/lucasol.device-pulse/control.py", "--device", deviceId, "--" + action, String(value)]
+    controlProcess.running = true
+  }
   onOpenedChanged: if (opened) refresh()
   FileView {
     id: status
@@ -23,12 +35,43 @@ Panel {
     watchChanges: true
     onFileChanged: reload()
     onLoaded: {
-      try { root.snapshot = JSON.parse(text()) } catch (e) { console.warn("Baterias: JSON inválido") }
+      try {
+        var next = JSON.parse(text())
+        if (content.editing) root.deferredSnapshot = next
+        else root.snapshot = next
+      } catch (e) { console.warn("Baterias: JSON inválido") }
+    }
+  }
+  Connections {
+    target: content
+    function onEditingChanged() {
+      if (!content.editing && root.deferredSnapshot !== null) {
+        root.snapshot = root.deferredSnapshot
+        root.deferredSnapshot = null
+      }
     }
   }
   Process {
     id: refreshProcess
     command: ["systemctl", "--user", "start", "omarchy-device-pulse.service"]
+  }
+  Process {
+    id: controlProcess
+    stdout: StdioCollector { id: controlOutput }
+    onExited: function(exitCode) {
+      try {
+        var result = JSON.parse(controlOutput.text)
+        root.actionMessage = result.message
+        root.actionFailed = !result.ok
+        if (result.ok) {
+          if (content.focusedEditor) content.focusedEditor.focus = false
+          content.clearDraft(root.pendingDevice)
+        }
+      } catch (error) {
+        root.actionMessage = "Não consegui aplicar. Atualize pra conferir o mouse."
+        root.actionFailed = true
+      }
+    }
   }
   BarIconButton {
     id: button
@@ -36,7 +79,7 @@ Panel {
     bar: root.bar
     text: root.lowest < 0 ? "󰂑" : root.lowest <= 20 ? "󰁺" : "󰁹"
     active: root.lowest >= 0 && root.lowest <= 20
-    tooltipText: "Baterias" + (root.lowest >= 0 ? " · menor carga: " + root.lowest + "%" : "")
+    tooltipText: "DevicePulse · bateria e configurações" + (root.lowest >= 0 ? " · menor carga: " + root.lowest + "%" : "")
     onPressed: function(b) { if (b === Qt.MiddleButton) root.refresh(); else root.toggle() }
   }
   KeyboardPanel {
@@ -50,6 +93,7 @@ Panel {
     contentHeight: popup.fittedContentHeight(content.implicitHeight)
     PanelKeyCatcher {
       id: keys
+      blocked: content.editing
       anchors.fill: parent
       onCloseRequested: root.close()
       onTabRequested: function(direction) { root.switchPanel(direction) }
@@ -68,6 +112,10 @@ Panel {
           snapshot: root.snapshot
           foreground: root.bar ? root.bar.foreground : Color.foreground
           fontFamily: root.bar ? root.bar.fontFamily : Style.font.family
+          applying: controlProcess.running
+          actionMessage: root.actionMessage
+          actionFailed: root.actionFailed
+          onSettingRequested: function(deviceId, action, value) { root.applySetting(deviceId, action, value) }
         }
       }
     }

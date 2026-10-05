@@ -2,9 +2,11 @@ import importlib.util
 import json
 import tempfile
 import unittest
+import sys
 from pathlib import Path
 from unittest.mock import patch
 
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 spec = importlib.util.spec_from_file_location('collector', Path(__file__).resolve().parents[1] / 'collect.py')
 c = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(c)
@@ -18,6 +20,32 @@ def reply(percent=91, flags=9, vendor=0x3837, echo=6):
 
 
 class BatteryTests(unittest.TestCase):
+    def test_x9_requires_battery_field_and_valid_percentage(self):
+        self.assertEqual(c.decode_x9_reply(bytes([0x55, 0x65, 90, 2])), 90)
+        self.assertEqual(c.decode_x9_reply(bytes([0x55, 0x65, 0, 2])), 0)
+        for data in (b'', bytes([0x55, 0x65, 90, 1]), bytes([0x55, 0x65, 255, 2]), bytes([0x41, 0x65, 90, 2])):
+            self.assertIsNone(c.decode_x9_reply(data))
+
+    def test_sleeping_mouse_preserves_settings_as_readonly(self):
+        with tempfile.TemporaryDirectory() as temp, patch.object(c, 'STATE', Path(temp)):
+            row = dict(id='mouse', name='Mouse', kind='mouse', percent=91, connected=True, charging=False, settings={'dpi': 800})
+            c.save([dict(row)], [])
+            row['settings'], row['percent'], row['connected'] = None, None, None
+            result = c.save([dict(row)], [])['devices'][0]
+            self.assertEqual(result['settings']['dpi'], 800)
+            self.assertFalse(result['settingsLive'])
+            self.assertIsNotNone(result['settingsUpdatedAt'])
+
+    def test_multiple_devices_keep_independent_alerts_and_settings(self):
+        with tempfile.TemporaryDirectory() as temp, patch.object(c, 'STATE', Path(temp)):
+            first = dict(id='first', name='First', percent=91, connected=True, charging=False, settings={'dpi': 800})
+            second = dict(id='second', name='Second', percent=None, connected=None, charging=False)
+            c.save([dict(first), dict(second)], [])
+            first['percent'], first['settings'] = None, None
+            result = c.save([dict(first), dict(second)], [])
+            saved = {d['id']: d for d in result['devices']}
+            self.assertEqual(saved['first']['settings']['dpi'], 800)
+            self.assertIsNone(saved['second']['settings'])
     def test_valid_wireless_identity(self):
         self.assertEqual(c.decode_mchose_reply(reply()), (91, True, False))
 

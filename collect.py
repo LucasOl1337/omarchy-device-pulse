@@ -1,5 +1,5 @@
 #!/usr/bin/python3
-"""Read peripheral batteries. Never sends configuration commands to devices."""
+"""Read peripheral batteries and supported mouse settings."""
 import fcntl
 import json
 import os
@@ -7,9 +7,12 @@ import sqlite3
 import subprocess
 import time
 import argparse
+import select
+from contextlib import closing
 from pathlib import Path
 
 import dbus
+import mouse
 
 STATE = Path.home() / '.local/state/omarchy-device-pulse'
 
@@ -48,6 +51,35 @@ def mchose_identity(node):
                 return decoded
             time.sleep(.12)
     raise OSError('Dispositivo sem resposta')
+
+
+def decode_x9_reply(reply):
+    if len(reply) >= 4 and reply[:2] == b'\x55\x65' and reply[3] == 2:
+        return battery_value(reply[2])
+    return None
+
+
+def x9_battery(node):
+    # X9 3837:6045, status collection FF90, report 55, battery query 65/01.
+    # Protocol reference: HeadsetControl/lib/devices/mchose_x9.hpp.
+    descriptor = Path('/sys/class/hidraw', Path(node).name, 'device/report_descriptor').read_bytes()
+    props = Path('/sys/class/hidraw', Path(node).name, 'device/uevent').read_text()
+    if 'HID_ID=0003:00003837:00006045' not in props or b'\x06\x90\xff' not in descriptor or b'\x85\x55' not in descriptor:
+        raise OSError('Interface de status X9 não encontrada')
+    fd = os.open(node, os.O_RDWR | os.O_NONBLOCK)
+    try:
+        os.write(fd, bytes([0x55, 0x65, 1]) + bytes(61))
+        deadline = time.monotonic() + .7
+        while time.monotonic() < deadline:
+            ready, _, _ = select.select([fd], [], [], max(0, deadline - time.monotonic()))
+            if not ready:
+                break
+            value = decode_x9_reply(os.read(fd, 64))
+            if value is not None:
+                return value
+        raise OSError('X9 sem resposta de bateria')
+    finally:
+        os.close(fd)
 
 
 def collect():
@@ -105,37 +137,61 @@ def collect():
                     connected=None, percent=None, charging=False, detail='Receptor detectado · bateria não informada'))
         except OSError:
             continue
-    # Only probe the tested MCHOSE mouse protocol on its vendor interface.
+    # The headset status endpoint is separate from the mouse protocol.
     for sys in Path('/sys/class/hidraw').glob('*'):
         try:
             props = dict(line.split('=', 1) for line in (sys / 'device/uevent').read_text().splitlines() if '=' in line)
-            if props.get('HID_ID') != '0003:00005253:00001020':
+            if props.get('HID_ID') != '0003:00003837:00006045':
                 continue
-            if b'\x06\x01\xff' not in (sys / 'device/report_descriptor').read_bytes():
+            row = next((r for r in rows if r['id'] == 'usb:3837:6045'), None)
+            if row is None:
                 continue
-            name = props['HID_NAME'].replace('RealTek ', '').strip()
-            row = dict(id='mchose:' + props.get('HID_UNIQ', '') + ':' + name, name=name, kind='mouse',
-                source='Receptor USB', connected=None, percent=None, charging=False, detail='')
             try:
-                row['percent'], row['connected'], row['charging'] = mchose_identity('/dev/' + sys.name)
+                row['percent'] = x9_battery('/dev/' + sys.name)
+                row['connected'], row['source'], row['detail'] = True, 'Receptor USB', ''
             except PermissionError:
                 row['detail'] = 'Leitura USB sem permissão'
             except OSError:
-                row['detail'] = 'Sem resposta do mouse'
-            rows.append(row)
+                row['detail'] = 'Receptor detectado · X9 sem leitura de bateria'
         except OSError:
             continue
+    for candidate in mouse.candidates():
+        row = dict(id=candidate['id'], name=candidate['name'], kind='mouse', source='Receptor USB',
+            connected=None, percent=None, charging=False, detail='', settings=None, settingsError='')
+        try:
+            row['percent'], row['connected'], row['charging'] = mchose_identity(candidate['node'])
+            if row['connected']:
+                try:
+                    row['settings'] = mouse.read_settings(candidate['node'])
+                    row['settings']['canEdit'] = candidate['canConfigure']
+                except (OSError, ValueError):
+                    row['settingsError'] = 'DPI sem leitura nesta atualização'
+        except PermissionError:
+            row['detail'] = 'Leitura USB sem permissão'
+        except OSError:
+            row['detail'] = 'Sem resposta do mouse'
+        rows.append(row)
     return rows, errors
 
 
 def save(rows, errors):
     STATE.mkdir(parents=True, exist_ok=True, mode=0o700)
     now = int(time.time())
-    with sqlite3.connect(STATE / 'history.sqlite') as db:
+    try:
+        previous_devices = {r['id']: r for r in json.loads((STATE / 'status.json').read_text())['devices']}
+    except (OSError, ValueError, KeyError):
+        previous_devices = {}
+    with closing(sqlite3.connect(STATE / 'history.sqlite')) as db, db:
         db.execute('CREATE TABLE IF NOT EXISTS samples (device TEXT, stamp INTEGER, percent INTEGER, charging INTEGER, PRIMARY KEY(device,stamp))')
         db.execute('CREATE TABLE IF NOT EXISTS alerts (device TEXT PRIMARY KEY, band INTEGER)')
         db.execute('DELETE FROM samples WHERE stamp < ?', (now - 30 * 86400,))
         for row in rows:
+            row.setdefault('settings', None)
+            row.setdefault('settingsError', '')
+            row['settingsLive'] = row['settings'] is not None
+            row['settingsUpdatedAt'] = now if row['settingsLive'] else previous_devices.get(row['id'], {}).get('settingsUpdatedAt')
+            if not row['settingsLive']:
+                row['settings'] = previous_devices.get(row['id'], {}).get('settings')
             percent = row['percent']
             if percent is not None:
                 db.execute('INSERT OR REPLACE INTO samples VALUES (?,?,?,?)', (row['id'], now, percent, row['charging']))
@@ -166,7 +222,8 @@ if __name__ == '__main__':
     parser.add_argument('--json', action='store_true', help='Also print the current snapshot')
     args = parser.parse_args()
     os.umask(0o077)
-    rows, errors = collect()
-    payload = save(rows, errors)
+    with mouse.device_lock():
+        rows, errors = collect()
+        payload = save(rows, errors)
     if args.json:
         print(json.dumps(payload, ensure_ascii=False))
