@@ -1,0 +1,12 @@
+{
+  "schemaVersion": 1,
+  "id": "lucasol.device-pulse",
+  "name": "DevicePulse",
+  "version": "1.0.0",
+  "license": "MIT",
+  "author": "LucasOl",
+  "description": "Bateria de mouse, teclado e fone, com histórico e avisos.",
+  "kinds": ["bar-widget"],
+  "entryPoints": {"barWidget": "Panel.qml"},
+  "barWidget": {"displayName": "Baterias", "category": "System", "allowMultiple": false, "defaultSection": "right"}
+}
