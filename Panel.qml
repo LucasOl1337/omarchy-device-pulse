@@ -17,7 +17,7 @@ Panel {
     function close(): void { root.close() }
     function toggle(): void { root.toggle() }
     function diagnostics(): string {
-      return JSON.stringify({version: "1.2.1", sourceUrl: Qt.resolvedUrl("Panel.qml").toString(), layout: "compact-device-settings", devices: root.snapshot.devices.length})
+      return JSON.stringify({version: "1.2.2", sourceUrl: Qt.resolvedUrl("Panel.qml").toString(), layout: "compact-device-settings", devices: root.snapshot.devices.length})
     }
   }
   property var snapshot: ({devices: [], errors: []})
@@ -90,9 +90,9 @@ Panel {
     id: button
     anchors.fill: parent
     bar: root.bar
-    text: root.lowest < 0 ? "󰂑" : root.lowest <= 20 ? "󰁺" : "󰁹"
+    text: "󰾰"
     active: root.lowest >= 0 && root.lowest <= 20
-    tooltipText: "DevicePulse · bateria e configurações" + (root.lowest >= 0 ? " · menor carga: " + root.lowest + "%" : "")
+    tooltipText: "Dispositivos · bateria e configurações" + (root.lowest >= 0 ? " · menor carga: " + root.lowest + "%" : "")
     onPressed: function(b) { if (b === Qt.MiddleButton) root.refresh(); else root.toggle() }
   }
   KeyboardPanel {

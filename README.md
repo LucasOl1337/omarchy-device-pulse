@@ -12,7 +12,7 @@ Bateria e configurações dos seus periféricos na barra do Omarchy. Um ícone, 
 - Avisos em 20% e 10%, sem repetir a cada atualização.
 - Receptor USB presente e bateria não informada aparecem como estados distintos. Sem percentual disponível, o painel não inventa 0%.
 
-O ícone destaca bateria baixa. Clique pra abrir; botão do meio pra atualizar. Esc fecha o painel, e as setas rolam a lista quando ela não cabe na tela.
+O ícone de dispositivos representa os periféricos e fica destacado quando alguma bateria está baixa. Clique pra abrir; botão do meio pra atualizar. Esc fecha o painel, e as setas rolam a lista quando ela não cabe na tela.
 
 ## Instalar
 
