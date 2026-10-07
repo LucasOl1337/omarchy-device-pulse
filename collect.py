@@ -14,6 +14,7 @@ from pathlib import Path
 import dbus
 import mouse
 import keyboard
+import ajazz
 
 STATE = Path.home() / '.local/state/omarchy-device-pulse'
 
@@ -172,6 +173,7 @@ def collect():
         except OSError:
             row['detail'] = 'Sem resposta do mouse'
         rows.append(row)
+    ajazz.attach(rows)
     keyboard.attach(rows)
     return rows, errors
 
@@ -211,7 +213,7 @@ def save(rows, errors):
             row['lastSeen'] = last[0] if last else None
             row['lastPercent'] = last[1] if last else None
             row.pop('address', None)
-    payload = dict(updatedAt=now, devices=sorted(rows, key=lambda r: (r['percent'] is None, r['percent'] if r['percent'] is not None else 101, r['name'])), errors=errors)
+    payload = dict(updatedAt=now, devices=sorted(rows, key=lambda r: (r['connected'] is False, {'keyboard': 0, 'mouse': 1, 'headphones': 2}.get(r.get('kind'), 3), r['name'])), errors=errors)
     temporary = STATE / 'status.tmp'
     temporary.write_text(json.dumps(payload, ensure_ascii=False))
     temporary.chmod(0o600)

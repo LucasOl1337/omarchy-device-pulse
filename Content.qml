@@ -14,17 +14,21 @@ Column {
   readonly property bool editing: focusedEditor !== null
   property string expandedDevice: ""
   property var dpiDrafts: ({})
+  property var colorDrafts: ({})
   function clearDraft(deviceId) {
     var drafts = Object.assign({}, dpiDrafts)
     delete drafts[deviceId]
     dpiDrafts = drafts
+    var colors = Object.assign({}, colorDrafts)
+    delete colors[deviceId]
+    colorDrafts = colors
   }
   signal settingRequested(string deviceId, string action, string value)
   spacing: Style.space(8)
   function icon(kind) { return kind === "mouse" ? "󰍽" : kind === "keyboard" ? "󰌌" : kind === "headphones" ? "󰋋" : "󰂑" }
   function timeLabel(stamp) { return Qt.formatDateTime(new Date(stamp * 1000), "HH:mm") }
-  Text { text: "DevicePulse · dispositivos"; color: root.foreground; font.family: root.fontFamily; font.pixelSize: Style.font.body + Style.space(2); font.bold: true }
-  Text { text: root.snapshot.updatedAt ? "Atualizado às " + root.timeLabel(root.snapshot.updatedAt) + " · a cada minuto" : "Aguardando primeira leitura"; color: root.foreground; opacity: .6; font.family: root.fontFamily; font.pixelSize: Style.font.caption }
+  Text { text: "Dispositivos"; color: root.foreground; font.family: root.fontFamily; font.pixelSize: Style.font.body + Style.space(2); font.bold: true }
+  Text { text: root.snapshot.updatedAt ? "Atualizado às " + root.timeLabel(root.snapshot.updatedAt) + "" : "Aguardando primeira leitura"; color: root.foreground; opacity: .6; font.family: root.fontFamily; font.pixelSize: Style.font.caption }
   Repeater {
     model: root.snapshot.devices
     delegate: Rectangle {
@@ -38,6 +42,7 @@ Column {
       readonly property color levelColor: measured && modelData.percent <= 20 ? Color.urgent : Color.accent
       readonly property var settings: modelData.settings || null
       readonly property bool canEdit: settings !== null && settings.canEdit !== false && modelData.settingsLive === true && !root.applying
+      readonly property var lighting: modelData.lighting || null
       readonly property bool expanded: root.expandedDevice === modelData.id
       Column {
         id: info
@@ -145,56 +150,85 @@ Column {
           }
           Text { visible: !card.modelData.settingsLive; width: parent.width; wrapMode: Text.WordWrap; text: "Movimente o mouse e reabra o painel pra atualizar."; color: root.foreground; opacity: .6; font.family: root.fontFamily; font.pixelSize: Style.font.caption }
         }
+        Row {
+          visible: card.lighting !== null
+          width: parent.width; spacing: Style.space(6)
+          Text {
+            width: parent.width - Style.space(62)
+            text: card.lighting && card.lighting.color ? (card.lighting.color === "000000" ? "RGB apagado" : "RGB #" + card.lighting.color) : "RGB · escolha uma cor"
+            color: root.foreground; font.family: root.fontFamily; font.pixelSize: Style.font.caption
+          }
+          Rectangle {
+            width: Style.space(56); height: Style.space(22); radius: Style.space(4)
+            color: Qt.rgba(root.foreground.r, root.foreground.g, root.foreground.b, .1)
+            Text { anchors.centerIn: parent; text: card.expanded ? "Fechar" : "Ajustar"; color: root.foreground; font.family: root.fontFamily; font.pixelSize: Style.font.caption }
+            MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: root.expandedDevice = card.expanded ? "" : card.modelData.id }
+          }
+        }
         Column {
-          visible: !!card.modelData.lighting
-          width: parent.width; spacing: Style.space(5)
-          Text { text: "RGB · cor fixa em todo o teclado"; color: root.foreground; opacity: .65; font.family: root.fontFamily; font.pixelSize: Style.font.caption }
-          Flow {
-            width: parent.width; spacing: Style.space(4)
+          visible: card.expanded && card.lighting !== null
+          width: parent.width; spacing: Style.space(7)
+          Grid {
+            width: parent.width; columns: 3; spacing: Style.space(4)
             Repeater {
-              model: [{label: "Laranja", hex: "FF8500"}, {label: "Vermelho", hex: "FF0000"}, {label: "Azul", hex: "0088FF"}, {label: "Verde", hex: "00CC55"}, {label: "Branco", hex: "FFFFFF"}, {label: "Apagar", hex: "000000"}]
+              model: [{label: "Laranja", hex: "C83200"}, {label: "Vermelho", hex: "FF0000"}, {label: "Azul", hex: "0088FF"}, {label: "Verde", hex: "00CC55"}, {label: "Branco", hex: "FFFFFF"}, {label: "Apagar", hex: "000000"}]
               delegate: Rectangle {
                 required property var modelData
-                width: colorLabel.implicitWidth + Style.space(29); height: Style.space(25); radius: Style.space(4)
-                readonly property bool available: !!card.modelData.lighting && card.modelData.lighting.canEdit && !root.applying
+                width: (parent.width - Style.space(8)) / 3; height: Style.space(28); radius: Style.space(4)
+                readonly property bool available: !!card.lighting && card.lighting.canEdit && !root.applying
+                readonly property bool selected: !!card.lighting && card.lighting.color === modelData.hex
                 opacity: available ? 1 : .4
-                color: Qt.rgba(root.foreground.r, root.foreground.g, root.foreground.b, .08)
+                color: selected ? Qt.rgba(Color.accent.r, Color.accent.g, Color.accent.b, .2) : Qt.rgba(root.foreground.r, root.foreground.g, root.foreground.b, .08)
+                border.width: selected ? 1 : 0; border.color: Color.accent
                 Row {
-                  anchors.centerIn: parent; spacing: Style.space(5)
-                  Rectangle { width: Style.space(8); height: width; anchors.verticalCenter: parent.verticalCenter; radius: width / 2; color: "#" + modelData.hex; border.width: 1; border.color: root.foreground }
-                  Text { id: colorLabel; text: modelData.label; color: root.foreground; font.family: root.fontFamily; font.pixelSize: Style.font.caption }
+                  anchors.centerIn: parent; spacing: Style.space(4)
+                  Rectangle { width: Style.space(7); height: width; anchors.verticalCenter: parent.verticalCenter; radius: width / 2; color: "#" + modelData.hex; border.width: 1; border.color: root.foreground }
+                  Text { text: modelData.label; color: root.foreground; font.family: root.fontFamily; font.pixelSize: Style.font.caption }
                 }
                 MouseArea { anchors.fill: parent; enabled: parent.available; cursorShape: Qt.PointingHandCursor; onClicked: root.settingRequested(card.modelData.id, "color", modelData.hex) }
               }
             }
           }
-          Text { visible: !!card.modelData.lighting && !card.modelData.lighting.canEdit; width: parent.width; wrapMode: Text.WordWrap; text: "Acorde o teclado e atualize o painel. Requer OpenRGB."; color: root.foreground; opacity: .5; font.family: root.fontFamily; font.pixelSize: Style.font.caption }
+          Row {
+            width: parent.width; spacing: Style.space(6)
+            Rectangle {
+              width: parent.width - Style.space(76); height: Style.space(28); radius: Style.space(4)
+              color: Qt.rgba(root.foreground.r, root.foreground.g, root.foreground.b, .08)
+              TextInput {
+                id: rgbInput
+                anchors.fill: parent; anchors.margins: Style.space(5)
+                text: root.colorDrafts[card.modelData.id] !== undefined ? root.colorDrafts[card.modelData.id] : card.lighting && card.lighting.color ? card.lighting.color : "C83200"
+                onTextEdited: { var drafts = Object.assign({}, root.colorDrafts); drafts[card.modelData.id] = text; root.colorDrafts = drafts }
+                maximumLength: 6; validator: RegularExpressionValidator { regularExpression: /[0-9a-fA-F]{6}/ }
+                enabled: !!card.lighting && card.lighting.canEdit && !root.applying; selectByMouse: true
+                color: root.foreground; font.family: root.fontFamily; font.pixelSize: Style.font.caption
+                onActiveFocusChanged: { if (activeFocus) root.focusedEditor = rgbInput; else if (root.focusedEditor === rgbInput) root.focusedEditor = null }
+                Keys.onEscapePressed: focus = false
+                Keys.onReturnPressed: if (acceptableInput && enabled) root.settingRequested(card.modelData.id, "color", text)
+              }
+            }
+            Rectangle {
+              width: Style.space(70); height: Style.space(28); radius: Style.space(4)
+              color: Color.accent; opacity: rgbInput.enabled && rgbInput.acceptableInput ? 1 : .4
+              Text { anchors.centerIn: parent; text: "Aplicar"; color: Color.background; font.family: root.fontFamily; font.pixelSize: Style.font.caption }
+              MouseArea { anchors.fill: parent; enabled: rgbInput.enabled && rgbInput.acceptableInput; cursorShape: Qt.PointingHandCursor; onClicked: root.settingRequested(card.modelData.id, "color", rgbInput.text) }
+            }
+          }
+          Text { text: "Cor HEX · C83200 = RGB 200, 50, 0"; color: root.foreground; opacity: .55; font.family: root.fontFamily; font.pixelSize: Style.font.caption }
+          Text { visible: !!card.lighting && !card.lighting.canEdit; width: parent.width; wrapMode: Text.WordWrap; text: "Acorde o teclado e atualize o painel."; color: root.foreground; opacity: .5; font.family: root.fontFamily; font.pixelSize: Style.font.caption }
         }
         Text { visible: !!card.modelData.settingsError; width: parent.width; wrapMode: Text.WordWrap; text: card.modelData.settingsError || ""; color: root.foreground; opacity: .5; font.family: root.fontFamily; font.pixelSize: Style.font.caption }
-        Text { visible: card.modelData.kind === "mouse" && !card.settings && card.modelData.id.indexOf("mchose:") !== 0; width: parent.width; text: "Configurações ainda sem suporte"; color: root.foreground; opacity: .45; font.family: root.fontFamily; font.pixelSize: Style.font.caption }
-        Canvas {
-          id: graph
-          visible: card.modelData.history.length > 1 && card.modelData.history.some(p => p.percent !== card.modelData.history[0].percent)
-          width: parent.width; height: visible ? Style.space(18) : 0
-          onVisibleChanged: requestPaint()
-          Connections { target: card; function onModelDataChanged() { graph.requestPaint() } }
-          onPaint: {
-            var ctx = getContext("2d"); ctx.clearRect(0, 0, width, height)
-            var points = card.modelData.history; if (points.length < 2) return
-            var start = points[0].time, span = Math.max(1, points[points.length - 1].time - start)
-            ctx.strokeStyle = card.levelColor; ctx.lineWidth = 1.5; ctx.beginPath()
-            for (var i = 0; i < points.length; i++) {
-              var x = (points[i].time - start) / span * width, y = 2 + (100 - points[i].percent) / 100 * (height - 4)
-              if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y)
-            }
-            ctx.stroke()
-          }
+        Text {
+          visible: card.expanded && card.modelData.history.length > 1
+          text: card.modelData.history.length > 1 ? "Últimas 24h: " + card.modelData.history[0].percent + "% → " + card.modelData.history[card.modelData.history.length - 1].percent + "%" : ""
+          color: root.foreground; opacity: .5; font.family: root.fontFamily; font.pixelSize: Style.font.caption
         }
+
       }
     }
   }
   Text { visible: !root.snapshot.devices.length; text: "Nenhum dispositivo com bateria detectado."; color: root.foreground; font.family: root.fontFamily; font.pixelSize: Style.font.body }
   Text { visible: root.actionMessage !== ""; width: parent.width; wrapMode: Text.WordWrap; textFormat: Text.PlainText; text: root.actionMessage; color: root.actionFailed ? Color.urgent : Color.accent; font.family: root.fontFamily; font.pixelSize: Style.font.caption }
-  Text { width: parent.width; wrapMode: Text.WordWrap; text: "Histórico de 24h · avisos em 20% e 10%.\nBluetooth atualiza quando conectado."; color: root.foreground; opacity: .5; font.family: root.fontFamily; font.pixelSize: Style.font.caption }
+  Text { width: parent.width; wrapMode: Text.WordWrap; text: "Avisos de bateria em 20% e 10%."; color: root.foreground; opacity: .5; font.family: root.fontFamily; font.pixelSize: Style.font.caption }
   Text { visible: root.snapshot.errors.length > 0; width: parent.width; wrapMode: Text.WordWrap; text: root.snapshot.errors.join(" · "); color: Color.urgent; font.family: root.fontFamily; font.pixelSize: Style.font.caption }
 }

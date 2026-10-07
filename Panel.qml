@@ -17,7 +17,7 @@ Panel {
     function close(): void { root.close() }
     function toggle(): void { root.toggle() }
     function diagnostics(): string {
-      return JSON.stringify({version: "1.2.0", sourceUrl: Qt.resolvedUrl("Panel.qml").toString(), layout: "compact-device-settings", devices: root.snapshot.devices.length})
+      return JSON.stringify({version: "1.2.1", sourceUrl: Qt.resolvedUrl("Panel.qml").toString(), layout: "compact-device-settings", devices: root.snapshot.devices.length})
     }
   }
   property var snapshot: ({devices: [], errors: []})
@@ -39,7 +39,7 @@ Panel {
     controlProcess.command = ["/usr/bin/python3", Quickshell.env("HOME") + "/.config/omarchy/plugins/lucasol.device-pulse/control.py", "--device", deviceId, "--" + action, String(value)]
     controlProcess.running = true
   }
-  onOpenedChanged: if (opened) refresh()
+  onOpenedChanged: if (opened) { actionMessage = ""; refresh() }
   FileView {
     id: status
     path: Quickshell.env("HOME") + "/.local/state/omarchy-device-pulse/status.json"
@@ -74,6 +74,7 @@ Panel {
         var result = JSON.parse(controlOutput.text)
         root.actionMessage = result.message
         root.actionFailed = !result.ok
+        messageTimer.restart()
         if (result.ok) {
           if (content.focusedEditor) content.focusedEditor.focus = false
           content.clearDraft(root.pendingDevice)
@@ -84,6 +85,7 @@ Panel {
       }
     }
   }
+  Timer { id: messageTimer; interval: 5000; onTriggered: root.actionMessage = "" }
   BarIconButton {
     id: button
     anchors.fill: parent

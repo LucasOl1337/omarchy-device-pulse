@@ -24,13 +24,13 @@ cd omarchy-device-pulse
 python3 install.py
 ```
 
-Pra ler e configurar o K7 Ultra com receptor `5253:1020`, ou ler a bateria do X9 `3837:6045`, instale também as regras de acesso USB:
+Pra ler e configurar o K7 Ultra com receptor `5253:1020`, ler a bateria do X9 `3837:6045`, ou do AJAZZ `3151:5007`, instale também as regras de acesso USB:
 
 ```bash
 python3 install.py --udev
 ```
 
-Essa opção usa sudo pra instalar regras udev restritas aos dois receptores. O coletor roda como usuário comum. Rodar o instalador de novo atualiza os arquivos sem apagar o histórico ou mudar a posição do ícone.
+Essa opção usa sudo pra instalar regras udev restritas aos receptores suportados. O coletor roda como usuário comum. Rodar o instalador de novo atualiza os arquivos sem apagar o histórico ou mudar a posição do ícone.
 
 Cada atualização publica o QML em `.runtime/<hash>/`, evitando que a barra continue usando a interface antiga em cache. Pra conferir a versão carregada: `quickshell ipc -p /usr/share/omarchy/shell call lucasol.device-pulse diagnostics`.
 
@@ -42,7 +42,7 @@ Cada atualização publica o QML em `.runtime/<hash>/`, evitando que a barra con
 | BlueZ | Dispositivos pareados, com percentual quando `org.bluez.Battery1` está disponível e o aparelho está conectado |
 | MCHOSE K7 Ultra `5253:1020` | Bateria, DPI atual, etapas e polling rate; edição validada neste modelo |
 | MCHOSE X9 `3837:6045` | Bateria pelo receptor 2.4 GHz; validado em hardware real |
-| AJAZZ `3151:5007` | Receptor detectado; bateria e edição de configurações ainda sem suporte |
+| AJAZZ 2.4G 8K `3151:5007` | Bateria pelo receptor, validada em hardware real; edição de configurações ainda sem suporte |
 
 Um dongle conectado não prova que o aparelho está ligado. Por isso o painel informa "Receptor detectado" quando não consegue ler a telemetria. Nomes de outros receptores podem precisar de suporte específico.
 
@@ -56,22 +56,24 @@ O coletor só lê. O controlador escreve apenas depois da sua ação no painel, 
 
 Quando o mouse dorme ou sai de alcance, o painel guarda a última configuração como anterior e desabilita a edição. Movimente o mouse e reabra o painel pra buscar a leitura atual. A edição de outros modelos ainda depende de validação do protocolo.
 
+A bateria do AJAZZ usa a consulta de status `F7` e o relatório HID de bateria documentados no [AJAZZ Control Center](https://github.com/Aiacos/ajazz-control-center/blob/develop/docs/protocols/mouse/aj_series_battery.md). A consulta não altera DPI, botões ou perfil. Respostas vazias, incompletas ou fora de 1–100% ficam como desconhecidas.
+
 ## RGB do teclado
 
-No cartão do **Logitech G515 LS TKL**, escolha **Laranja**, outra cor ou **Apagar**. Requer `openrgb` com suporte ao G515 (validado com 1.0rc3) e configuração de detectores gerada pela primeira execução do OpenRGB. O teclado precisa estar acordado e conectado.
+No cartão do **Logitech G515 LS TKL**, abra **Ajustar** e escolha **Laranja**, outra cor ou **Apagar**. Laranja usa RGB 200, 50, 0 (`C83200`). O campo HEX aceita qualquer cor de seis dígitos. Requer `openrgb` com suporte ao G515 (validado com 1.0rc3) e configuração de detectores gerada pela primeira execução do OpenRGB. O teclado precisa estar acordado e conectado.
 
-O controle usa uma configuração separada que habilita somente os detectores do G515, evitando consultar RAM, GPU e placa-mãe. A coleta de bateria não chama OpenRGB. A mensagem confirma o envio do comando; não existe leitura de volta da cor física. Não há reaplicação automática depois de reboot ou reconexão.
+O controle usa uma configuração separada que habilita somente os detectores do G515, evitando consultar RAM, GPU e placa-mãe. A coleta de bateria não chama OpenRGB. A cor selecionada fica salva localmente. O serviço `omarchy-device-pulse-rgb.service` mantém o controlador OpenRGB ativo, em modo host, e inicia novamente no login. O servidor RGB escuta somente em `127.0.0.1:16743` e detecta apenas o G515. Não há escrita de perfil na memória flash do teclado. A cor mostrada é a seleção enviada, não uma leitura da iluminação física. O retorno após suspensão/reconexão ainda depende de validação física.
 
 Também aceita qualquer cor pela linha de comando, usando o ID do teclado publicado no `status.json`:
 
 ```bash
-python3 control.py --device 'ID_DO_TECLADO' --color FF8500
+python3 control.py --device 'ID_DO_TECLADO' --color C83200
 ```
 
 ## Manutenção
 
 ```bash
-systemctl --user status omarchy-device-pulse.timer
+systemctl --user status omarchy-device-pulse.timer omarchy-device-pulse-rgb.service
 systemctl --user start omarchy-device-pulse.service
 python3 collect.py --json
 python3 -m unittest discover -s tests -v

@@ -64,7 +64,7 @@ def install(udev=False):
             shutil.copytree(legacy, STATE)
     STATE.mkdir(parents=True, exist_ok=True, mode=0o700)
     DEST.mkdir(parents=True, exist_ok=True)
-    for name in ('collect.py', 'mouse.py', 'keyboard.py', 'control.py'):
+    for name in ('collect.py', 'mouse.py', 'ajazz.py', 'keyboard.py', 'control.py'):
         shutil.copy2(ROOT / name, DEST / name)
     deploy_ui(ROOT, DEST)
     UNITS.mkdir(parents=True, exist_ok=True)
@@ -76,13 +76,18 @@ def install(udev=False):
         '[Unit]\nDescription=Refresh DevicePulse batteries every minute\n\n'
         '[Timer]\nOnStartupSec=15\nOnUnitInactiveSec=60\nAccuracySec=5\n\n'
         '[Install]\nWantedBy=timers.target\n')
+    (UNITS / 'omarchy-device-pulse-rgb.service').write_text(
+        '[Unit]\nDescription=Keep DevicePulse keyboard lighting selected\n\n'
+        '[Service]\nExecStart=/usr/bin/python3 ' + json.dumps(str(DEST / 'keyboard.py')) + '\n'
+        'Restart=on-failure\nRestartSec=3\nUMask=0077\nNice=10\n\n'
+        '[Install]\nWantedBy=default.target\n')
     if udev:
         rule = ROOT / '70-device-pulse-mchose.rules'
         run('sudo', 'install', '-m', '644', str(rule), '/etc/udev/rules.d/70-device-pulse-mchose.rules')
         run('sudo', 'udevadm', 'control', '--reload-rules')
         for node in Path('/sys/class/hidraw').glob('*'):
             try:
-                if any(identity in (node / 'device/uevent').read_text() for identity in ('HID_ID=0003:00005253:00001020', 'HID_ID=0003:00003837:00006045')):
+                if any(identity in (node / 'device/uevent').read_text() for identity in ('HID_ID=0003:00005253:00001020', 'HID_ID=0003:00003837:00006045', 'HID_ID=0003:00003151:00005007')):
                     run('sudo', 'udevadm', 'trigger', '--action=add', str(node))
             except OSError:
                 pass
@@ -98,6 +103,8 @@ def install(udev=False):
             config.write_text(json.dumps(data, ensure_ascii=False, indent=2) + '\n')
     run('systemctl', '--user', 'daemon-reload')
     run('systemctl', '--user', 'enable', '--now', 'omarchy-device-pulse.timer')
+    run('systemctl', '--user', 'enable', 'omarchy-device-pulse-rgb.service')
+    run('systemctl', '--user', 'restart', 'omarchy-device-pulse-rgb.service')
     run('systemctl', '--user', 'start', 'omarchy-device-pulse.service')
     run('omarchy-shell', 'shell', 'rescanPlugins')
     for _ in range(50):
@@ -114,9 +121,10 @@ def install(udev=False):
 
 def uninstall():
     run('omarchy-plugin-disable', PLUGIN, check=False)
+    run('systemctl', '--user', 'disable', '--now', 'omarchy-device-pulse-rgb.service', check=False)
     run('systemctl', '--user', 'disable', '--now', 'omarchy-device-pulse.timer', check=False)
     run('systemctl', '--user', 'stop', 'omarchy-device-pulse.service', check=False)
-    for name in ('omarchy-device-pulse.timer', 'omarchy-device-pulse.service'):
+    for name in ('omarchy-device-pulse.timer', 'omarchy-device-pulse.service', 'omarchy-device-pulse-rgb.service'):
         (UNITS / name).unlink(missing_ok=True)
     if DEST.exists():
         shutil.rmtree(DEST)

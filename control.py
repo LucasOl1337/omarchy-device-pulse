@@ -25,6 +25,7 @@ def main():
             if args.color is not None:
                 rows, errors = collect.collect()
                 message = keyboard.apply_color(args.device, args.color, rows)
+                keyboard.attach(rows)
             else:
                 settings = mouse.apply_setting(args.device, args.dpi, args.stage, args.rate)
                 message = 'Confirmado: ' + str(settings['dpi']) + ' DPI · ' + str(settings['pollingHz']) + ' Hz'
