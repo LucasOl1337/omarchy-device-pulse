@@ -64,7 +64,7 @@ def install(udev=False):
             shutil.copytree(legacy, STATE)
     STATE.mkdir(parents=True, exist_ok=True, mode=0o700)
     DEST.mkdir(parents=True, exist_ok=True)
-    for name in ('collect.py', 'mouse.py', 'control.py'):
+    for name in ('collect.py', 'mouse.py', 'keyboard.py', 'control.py'):
         shutil.copy2(ROOT / name, DEST / name)
     deploy_ui(ROOT, DEST)
     UNITS.mkdir(parents=True, exist_ok=True)

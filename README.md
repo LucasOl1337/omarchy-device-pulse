@@ -6,6 +6,7 @@ Bateria e configurações dos seus periféricos na barra do Omarchy. Um ícone, 
 
 - Percentual e estado de carga por dispositivo.
 - DPI atual e polling rate do MCHOSE K7 Ultra, com etapas, valor personalizado e troca de frequência pelo painel.
+- RGB do Logitech G515 LS TKL: cor fixa no teclado inteiro, com botão Laranja e opção de apagar.
 - Bluetooth pareado, inclusive quando está desconectado. A última leitura fica identificada como histórica.
 - Histórico das últimas 24 horas. O gráfico aparece quando a carga muda; os dados ficam guardados por 30 dias.
 - Avisos em 20% e 10%, sem repetir a cada atualização.
@@ -54,6 +55,18 @@ No K7 Ultra, clique em **Ajustar**. Você pode escolher uma etapa de DPI, editar
 O coletor só lê. O controlador escreve apenas depois da sua ação no painel, guarda a configuração anterior e confere a leitura de volta. Só mostra sucesso quando o mouse confirma a mudança. Backups ficam em `~/.local/state/omarchy-device-pulse/mouse-before-*.json`; não vão pro repo.
 
 Quando o mouse dorme ou sai de alcance, o painel guarda a última configuração como anterior e desabilita a edição. Movimente o mouse e reabra o painel pra buscar a leitura atual. A edição de outros modelos ainda depende de validação do protocolo.
+
+## RGB do teclado
+
+No cartão do **Logitech G515 LS TKL**, escolha **Laranja**, outra cor ou **Apagar**. Requer `openrgb` com suporte ao G515 (validado com 1.0rc3) e configuração de detectores gerada pela primeira execução do OpenRGB. O teclado precisa estar acordado e conectado.
+
+O controle usa uma configuração separada que habilita somente os detectores do G515, evitando consultar RAM, GPU e placa-mãe. A coleta de bateria não chama OpenRGB. A mensagem confirma o envio do comando; não existe leitura de volta da cor física. Não há reaplicação automática depois de reboot ou reconexão.
+
+Também aceita qualquer cor pela linha de comando, usando o ID do teclado publicado no `status.json`:
+
+```bash
+python3 control.py --device 'ID_DO_TECLADO' --color FF8500
+```
 
 ## Manutenção
 

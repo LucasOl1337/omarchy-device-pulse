@@ -19,7 +19,7 @@ Column {
     delete drafts[deviceId]
     dpiDrafts = drafts
   }
-  signal settingRequested(string deviceId, string action, int value)
+  signal settingRequested(string deviceId, string action, string value)
   spacing: Style.space(8)
   function icon(kind) { return kind === "mouse" ? "󰍽" : kind === "keyboard" ? "󰌌" : kind === "headphones" ? "󰋋" : "󰂑" }
   function timeLabel(stamp) { return Qt.formatDateTime(new Date(stamp * 1000), "HH:mm") }
@@ -144,6 +144,31 @@ Column {
             }
           }
           Text { visible: !card.modelData.settingsLive; width: parent.width; wrapMode: Text.WordWrap; text: "Movimente o mouse e reabra o painel pra atualizar."; color: root.foreground; opacity: .6; font.family: root.fontFamily; font.pixelSize: Style.font.caption }
+        }
+        Column {
+          visible: !!card.modelData.lighting
+          width: parent.width; spacing: Style.space(5)
+          Text { text: "RGB · cor fixa em todo o teclado"; color: root.foreground; opacity: .65; font.family: root.fontFamily; font.pixelSize: Style.font.caption }
+          Flow {
+            width: parent.width; spacing: Style.space(4)
+            Repeater {
+              model: [{label: "Laranja", hex: "FF8500"}, {label: "Vermelho", hex: "FF0000"}, {label: "Azul", hex: "0088FF"}, {label: "Verde", hex: "00CC55"}, {label: "Branco", hex: "FFFFFF"}, {label: "Apagar", hex: "000000"}]
+              delegate: Rectangle {
+                required property var modelData
+                width: colorLabel.implicitWidth + Style.space(29); height: Style.space(25); radius: Style.space(4)
+                readonly property bool available: !!card.modelData.lighting && card.modelData.lighting.canEdit && !root.applying
+                opacity: available ? 1 : .4
+                color: Qt.rgba(root.foreground.r, root.foreground.g, root.foreground.b, .08)
+                Row {
+                  anchors.centerIn: parent; spacing: Style.space(5)
+                  Rectangle { width: Style.space(8); height: width; anchors.verticalCenter: parent.verticalCenter; radius: width / 2; color: "#" + modelData.hex; border.width: 1; border.color: root.foreground }
+                  Text { id: colorLabel; text: modelData.label; color: root.foreground; font.family: root.fontFamily; font.pixelSize: Style.font.caption }
+                }
+                MouseArea { anchors.fill: parent; enabled: parent.available; cursorShape: Qt.PointingHandCursor; onClicked: root.settingRequested(card.modelData.id, "color", modelData.hex) }
+              }
+            }
+          }
+          Text { visible: !!card.modelData.lighting && !card.modelData.lighting.canEdit; width: parent.width; wrapMode: Text.WordWrap; text: "Acorde o teclado e atualize o painel. Requer OpenRGB."; color: root.foreground; opacity: .5; font.family: root.fontFamily; font.pixelSize: Style.font.caption }
         }
         Text { visible: !!card.modelData.settingsError; width: parent.width; wrapMode: Text.WordWrap; text: card.modelData.settingsError || ""; color: root.foreground; opacity: .5; font.family: root.fontFamily; font.pixelSize: Style.font.caption }
         Text { visible: card.modelData.kind === "mouse" && !card.settings && card.modelData.id.indexOf("mchose:") !== 0; width: parent.width; text: "Configurações ainda sem suporte"; color: root.foreground; opacity: .45; font.family: root.fontFamily; font.pixelSize: Style.font.caption }

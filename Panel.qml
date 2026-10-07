@@ -17,7 +17,7 @@ Panel {
     function close(): void { root.close() }
     function toggle(): void { root.toggle() }
     function diagnostics(): string {
-      return JSON.stringify({version: "1.1.1", sourceUrl: Qt.resolvedUrl("Panel.qml").toString(), layout: "compact-device-settings", devices: root.snapshot.devices.length})
+      return JSON.stringify({version: "1.2.0", sourceUrl: Qt.resolvedUrl("Panel.qml").toString(), layout: "compact-device-settings", devices: root.snapshot.devices.length})
     }
   }
   property var snapshot: ({devices: [], errors: []})
@@ -32,8 +32,8 @@ Panel {
 
   function refresh() { if (!refreshProcess.running) refreshProcess.running = true }
   function applySetting(deviceId, action, value) {
-    if (controlProcess.running || ["dpi", "stage", "rate"].indexOf(action) < 0) return
-    actionMessage = "Aplicando no mouse…"
+    if (controlProcess.running || ["dpi", "stage", "rate", "color"].indexOf(action) < 0) return
+    actionMessage = action === "color" ? "Aplicando no teclado…" : "Aplicando no mouse…"
     actionFailed = false
     pendingDevice = deviceId
     controlProcess.command = ["/usr/bin/python3", Quickshell.env("HOME") + "/.config/omarchy/plugins/lucasol.device-pulse/control.py", "--device", deviceId, "--" + action, String(value)]
@@ -79,7 +79,7 @@ Panel {
           content.clearDraft(root.pendingDevice)
         }
       } catch (error) {
-        root.actionMessage = "Não consegui aplicar. Atualize pra conferir o mouse."
+        root.actionMessage = "Não consegui aplicar. Atualize pra conferir o dispositivo."
         root.actionFailed = true
       }
     }

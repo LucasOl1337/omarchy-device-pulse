@@ -13,6 +13,7 @@ from pathlib import Path
 
 import dbus
 import mouse
+import keyboard
 
 STATE = Path.home() / '.local/state/omarchy-device-pulse'
 
@@ -171,6 +172,7 @@ def collect():
         except OSError:
             row['detail'] = 'Sem resposta do mouse'
         rows.append(row)
+    keyboard.attach(rows)
     return rows, errors
 
 
