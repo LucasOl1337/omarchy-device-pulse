@@ -74,13 +74,15 @@ def prepare_config():
         detectors = json.loads(CONFIG.read_text())['Detectors']['detectors']
     except (OSError, ValueError, KeyError):
         raise ValueError('Abra o OpenRGB uma vez para preparar a configuração.')
-    if not any('Logitech HID++ 2.0 G515 LS TKL' in key for key in detectors):
+    # OpenRGB 1.0rc names the detector per model; 1.1 has one generic HID++ 2.0 detector.
+    wanted = lambda key: 'Logitech HID++ 2.0 G515 LS TKL' in key or key == 'Logitech HID++ 2.0'
+    if not any(wanted(key) for key in detectors):
         raise ValueError('Esta versão do OpenRGB não suporta o G515.')
     isolated = STATE / 'openrgb-keyboard'
     isolated.mkdir(parents=True, exist_ok=True, mode=0o700)
     # Disable every known detector except this model. Never scan the motherboard.
     (isolated / 'OpenRGB.json').write_text(json.dumps({'Detectors': {'detectors': {
-        key: 'Logitech HID++ 2.0 G515 LS TKL' in key for key in detectors}},
+        key: wanted(key) for key in detectors}},
         'LogitechHIDPP20IdleSettings': {'force_host_mode': True}}))
     return isolated
 
@@ -89,7 +91,9 @@ def device_node():
     for node in Path('/sys/class/hidraw').glob('*'):
         try:
             info = (node / 'device/uevent').read_text()
-            if 'HID_ID=0003:0000046D:000040B4' in info and 'HID_NAME=Logitech G515 LS TKL' in info:
+            # USB via LIGHTSPEED receiver (PC) or direct Bluetooth (notebook).
+            if ('HID_ID=0003:0000046D:000040B4' in info and 'HID_NAME=Logitech G515 LS TKL' in info) or \
+               ('HID_ID=0005:0000046D:0000B389' in info and 'HID_NAME=G515 LS TKL' in info):
                 return '/dev/' + node.name
         except OSError:
             pass
@@ -103,15 +107,17 @@ def host_mode():
     node = device_node()
     if node is None:
         raise OSError('Teclado indisponível. Acorde ele e atualize.')
+    # HID++ device index: 1 behind the receiver, 0xFF on Bluetooth.
+    index = 0xFF if '0005:0000046D:0000B389' in (Path('/sys/class/hidraw') / Path(node).name / 'device/uevent').read_text() else 1
     fd = os.open(node, os.O_RDWR | os.O_NONBLOCK)
     def request(feature, function, params):
         tag = function | 0x0b
-        os.write(fd, bytes([0x11, 1, feature, tag]) + params.ljust(16, bytes(1)))
+        os.write(fd, bytes([0x11, index, feature, tag]) + params.ljust(16, bytes(1)))
         deadline = time.monotonic() + 2
         while time.monotonic() < deadline:
             if select.select([fd], [], [], max(0, deadline - time.monotonic()))[0]:
                 reply = os.read(fd, 64)
-                if len(reply) > 4 and reply[1] == 1:
+                if len(reply) > 4 and reply[1] == index:
                     if reply[2:4] == bytes([feature, tag]):
                         return reply[4:]
                     if reply[2] == 0xff and reply[3:5] == bytes([feature, tag]):
