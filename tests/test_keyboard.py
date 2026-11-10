@@ -15,7 +15,7 @@ class KeyboardTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as folder:
             config = Path(folder) / 'OpenRGB.json'
             config.write_text(json.dumps({'Detectors': {'detectors': {'Logitech HID++ 2.0 G515 LS TKL (wireless)': True, 'MSI': True}}}))
-            with patch.object(keyboard, 'host_mode'), patch.object(keyboard, 'server_ready', return_value=False), patch.object(keyboard, 'CONFIG', config), patch.object(keyboard, 'STATE', Path(folder)), patch.object(keyboard.subprocess, 'run', return_value=SimpleNamespace(returncode=0, stdout='Error: cannot find device', stderr='')):
+            with patch.object(keyboard, 'host_mode'), patch.object(keyboard, 'CONFIG', config), patch.object(keyboard, 'STATE', Path(folder)), patch.object(keyboard.subprocess, 'run', return_value=SimpleNamespace(returncode=0, stdout='Error: cannot find device', stderr='')):
                 with self.assertRaises(ValueError):
                     keyboard.apply_color('test-g515', 'FF8500', self.rows)
             isolated = json.loads((Path(folder) / 'openrgb-keyboard/OpenRGB.json').read_text())
@@ -35,7 +35,34 @@ class KeyboardTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as folder:
             state = Path(folder)
             (state / 'lighting.json').write_text('{"color":"C83200"}')
-            with patch.object(keyboard, 'STATE', state), patch.object(keyboard, 'prepare_config', return_value=state), patch.object(keyboard, 'host_mode'), patch.object(keyboard, 'server_ready', return_value=False), patch.object(keyboard.subprocess, 'run', return_value=SimpleNamespace(returncode=1, stdout='', stderr='USB unavailable')):
+            with patch.object(keyboard, 'STATE', state), patch.object(keyboard, 'prepare_config', return_value=state), patch.object(keyboard, 'host_mode'), patch.object(keyboard.subprocess, 'run', return_value=SimpleNamespace(returncode=1, stdout='', stderr='USB unavailable')):
                 with self.assertRaises(ValueError):
                     keyboard.apply_color('test-g515', 'FFFFFF', self.rows)
                 self.assertEqual(keyboard.load_color(), 'C83200')
+
+    def test_sleep_darkens_without_losing_the_selection_and_a_new_color_wakes(self):
+        with tempfile.TemporaryDirectory() as folder:
+            state = Path(folder)
+            (state / 'lighting.json').write_text('{"color":"C83200"}')
+            done = SimpleNamespace(returncode=0, stdout='', stderr='')
+            with patch.object(keyboard, 'STATE', state), patch.object(keyboard, 'prepare_config', return_value=state), patch.object(keyboard, 'host_mode'), patch.object(keyboard.subprocess, 'run', return_value=done) as run:
+                keyboard.set_sleep(True)
+                self.assertEqual((keyboard.shown_color(), keyboard.load_color()), ('000000', 'C83200'))
+                keyboard.set_sleep(False)
+                self.assertEqual(keyboard.shown_color(), 'C83200')
+                keyboard.set_sleep(True)
+                keyboard.apply_color('test-g515', 'FF8500', self.rows)
+                self.assertEqual(keyboard.shown_color(), 'FF8500')
+                # Never through the SDK client: the keeper stops, the color goes direct, the keeper returns.
+                calls = [call.args[0] for call in run.call_args_list[-3:]]
+                self.assertEqual([c[:3] for c in (calls[0], calls[2])], [['systemctl', '--user', 'stop'], ['systemctl', '--user', 'start']])
+                self.assertNotIn('--client', calls[1])
+
+    def test_keeper_returns_even_when_the_keyboard_does_not_answer(self):
+        with tempfile.TemporaryDirectory() as folder:
+            state = Path(folder)
+            with patch.object(keyboard, 'STATE', state), patch.object(keyboard, 'prepare_config', return_value=state), patch.object(keyboard, 'host_mode', side_effect=OSError('sem resposta')), patch.object(keyboard.subprocess, 'run') as run:
+                with self.assertRaises(OSError):
+                    keyboard.apply_color('test-g515', 'FF8500', self.rows)
+                self.assertEqual(run.call_args_list[-1].args[0][:3], ['systemctl', '--user', 'start'])
+                self.assertIsNone(keyboard.load_color())

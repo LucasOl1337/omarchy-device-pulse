@@ -12,15 +12,21 @@ import keyboard
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('--device', required=True)
+    parser.add_argument('--device')
     action = parser.add_mutually_exclusive_group(required=True)
     action.add_argument('--dpi', type=int)
     action.add_argument('--stage', type=int)
     action.add_argument('--rate', type=int)
     action.add_argument('--color')
+    action.add_argument('--sleep', choices=('on', 'off'), help='Keyboard dark for the night; off returns to the selected color')
     args = parser.parse_args()
+    if args.sleep is None and not args.device:
+        parser.error('--device is required')
     os.umask(0o077)
     try:
+        if args.sleep is not None:
+            print(json.dumps(dict(ok=True, message=keyboard.set_sleep(args.sleep == 'on'))))
+            return 0
         with mouse.device_lock():
             if args.color is not None:
                 rows, errors = collect.collect()

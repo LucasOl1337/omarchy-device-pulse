@@ -2,7 +2,6 @@
 import json
 import os
 import select
-import socket
 import time
 import re
 import shutil
@@ -14,13 +13,14 @@ CONFIG = Path.home() / '.config/OpenRGB/OpenRGB.json'
 MODEL = 'G515 LS TKL'
 PORT = 16743
 SERVICE = 'omarchy-device-pulse-rgb.service'
+SLEEP = 'lighting-sleep'
 ERROR = re.compile(r'^\s*Error:|cannot find device|not available for device|invalid mode|unknown mode|wrong number of colors', re.I | re.M)
 
 
 def attach(rows):
     for row in rows:
         if row['kind'] == 'keyboard' and MODEL.lower() in row['name'].lower():
-            row['lighting'] = dict(canEdit=row['connected'] is True and shutil.which('openrgb') is not None, color=load_color())
+            row['lighting'] = dict(canEdit=row['connected'] is True and shutil.which('openrgb') is not None, color=load_color(), sleeping=sleeping())
 
 
 def apply_color(device_id, color, rows):
@@ -33,32 +33,50 @@ def apply_color(device_id, color, rows):
         raise ValueError('Use uma cor com seis dígitos, como FF8500.')
     color = color.upper()
     isolated = prepare_config()
-    host_mode()
     command = ['openrgb', '--config', str(isolated), '--noautoconnect', '--device', MODEL]
-    if server_ready():
-        command = ['openrgb', '--client', '127.0.0.1:' + str(PORT), '--noautoconnect', '--nodetect', '--device', MODEL]
     command += ['--mode', 'Off'] if color == '000000' else ['--mode', 'Static', '--color', color]
+    # OpenRGB 1.1 as --client sees no server device with --nodetect and scans the
+    # motherboard without it, so the keeper steps aside while this applies directly.
+    subprocess.run(['systemctl', '--user', 'stop', SERVICE], capture_output=True, timeout=20)
     try:
-        result = subprocess.run(command, capture_output=True, text=True, timeout=35)
-    except subprocess.TimeoutExpired:
-        raise ValueError('O teclado demorou para responder. Acorde ele e tente de novo.')
-    output = result.stdout + '\n' + result.stderr
-    if result.returncode or ERROR.search(output):
-        raise ValueError('Não consegui aplicar o RGB: ' + (output.strip() or 'OpenRGB falhou')[-350:])
-    STATE.mkdir(parents=True, exist_ok=True, mode=0o700)
-    temporary = STATE / 'lighting.tmp'
-    temporary.write_text(json.dumps(dict(color=color)))
-    temporary.replace(STATE / 'lighting.json')
-    subprocess.run(['systemctl', '--user', 'start', SERVICE], capture_output=True, timeout=10)
+        host_mode()
+        try:
+            result = subprocess.run(command, capture_output=True, text=True, timeout=35)
+        except subprocess.TimeoutExpired:
+            raise ValueError('O teclado demorou para responder. Acorde ele e tente de novo.')
+        output = result.stdout + '\n' + result.stderr
+        if result.returncode or ERROR.search(output):
+            raise ValueError('Não consegui aplicar o RGB: ' + (output.strip() or 'OpenRGB falhou')[-350:])
+        STATE.mkdir(parents=True, exist_ok=True, mode=0o700)
+        temporary = STATE / 'lighting.tmp'
+        temporary.write_text(json.dumps(dict(color=color)))
+        temporary.replace(STATE / 'lighting.json')
+        (STATE / SLEEP).unlink(missing_ok=True)
+    finally:
+        # The keeper comes back with whatever selection is saved, new or previous.
+        subprocess.run(['systemctl', '--user', 'start', SERVICE], capture_output=True, timeout=10)
     return 'Cor selecionada: ' + ('RGB apagado.' if color == '000000' else 'cor fixa #' + color + ' em todo o teclado.')
 
 
-def server_ready():
-    try:
-        with socket.create_connection(('127.0.0.1', PORT), timeout=.2):
-            return True
-    except OSError:
-        return False
+def sleeping():
+    return (STATE / SLEEP).exists()
+
+
+def set_sleep(on):
+    """Dark for the night without touching the selected color; the keeper applies it."""
+    STATE.mkdir(parents=True, exist_ok=True, mode=0o700)
+    if on:
+        (STATE / SLEEP).touch()
+    else:
+        (STATE / SLEEP).unlink(missing_ok=True)
+    subprocess.run(['systemctl', '--user', 'start', SERVICE], capture_output=True, timeout=10)
+    return 'Teclado apagado; a cor escolhida fica guardada.' if on else 'Teclado de volta à cor escolhida.'
+
+
+def shown_color():
+    """What the keyboard should show now: the selection, or dark while sleeping."""
+    color = load_color()
+    return '000000' if color is not None and sleeping() else color
 
 
 def load_color():
@@ -135,10 +153,11 @@ def host_mode():
 def serve():
     """Keep the isolated controller alive; it manages idle/wake and reconnects."""
     child = None
+    applied = None
     try:
         while True:
-            color = load_color()
-            if color is None or device_node() is None:
+            color = shown_color()
+            if color is None or device_node() is None or (child is not None and color != applied):
                 if child is not None:
                     child.terminate()
                     child.wait(timeout=10)
@@ -154,6 +173,7 @@ def serve():
                     if color != '000000':
                         command += ['--color', color]
                     child = subprocess.Popen(command)
+                    applied = color
                 except (OSError, ValueError) as error:
                     print(str(error), flush=True)
             time.sleep(2)

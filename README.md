@@ -60,7 +60,7 @@ A bateria do AJAZZ usa a consulta de status `F7` e o relatório HID de bateria d
 
 ## RGB do teclado
 
-No cartão do **Logitech G515 LS TKL**, abra **Ajustar** e escolha **Laranja**, outra cor ou **Apagar**. Laranja usa RGB 200, 50, 0 (`C83200`). O campo HEX aceita qualquer cor de seis dígitos. Requer `openrgb` com suporte ao G515 (validado com 1.0rc3) e configuração de detectores gerada pela primeira execução do OpenRGB. O teclado precisa estar acordado e conectado.
+No cartão do **Logitech G515 LS TKL**, abra **Ajustar** e escolha **Laranja**, outra cor ou **Apagar**. Laranja usa RGB 200, 50, 0 (`C83200`). O campo HEX aceita qualquer cor de seis dígitos. Requer `openrgb` com suporte ao G515 (validado com 1.0rc3 e 1.1) e configuração de detectores gerada pela primeira execução do OpenRGB. O teclado precisa estar acordado e conectado, pelo receptor LIGHTSPEED ou direto por Bluetooth.
 
 O controle usa uma configuração separada que habilita somente os detectores do G515, evitando consultar RAM, GPU e placa-mãe. A coleta de bateria não chama OpenRGB. A cor selecionada fica salva localmente. O serviço `omarchy-device-pulse-rgb.service` mantém o controlador OpenRGB ativo, em modo host, e inicia novamente no login. O servidor RGB escuta somente em `127.0.0.1:16743` e detecta apenas o G515. Não há escrita de perfil na memória flash do teclado. A cor mostrada é a seleção enviada, não uma leitura da iluminação física. O retorno após suspensão/reconexão ainda depende de validação física.
 
@@ -69,6 +69,15 @@ Também aceita qualquer cor pela linha de comando, usando o ID do teclado public
 ```bash
 python3 control.py --device 'ID_DO_TECLADO' --color C83200
 ```
+
+Para apagar o teclado só durante a noite, sem perder a cor escolhida:
+
+```bash
+python3 control.py --sleep on    # apaga; a cor continua salva
+python3 control.py --sleep off   # volta para a cor escolhida
+```
+
+`--color 000000` é a escolha permanente de RGB apagado; para dormir use `--sleep`. Escolher uma cor encerra o modo dormir. Ao trocar a cor, o serviço para por um instante, a cor é aplicada direto e o serviço volta com ela: no OpenRGB 1.1 o cliente SDK não enxerga o teclado do servidor sem varrer o resto do hardware.
 
 ## Manutenção
 
